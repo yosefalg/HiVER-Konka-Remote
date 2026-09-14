@@ -12,12 +12,22 @@ final class IrEngine {
     }
 
     boolean isAvailable() {
-        return manager != null && manager.hasIrEmitter();
+        try {
+            return manager != null && manager.hasIrEmitter();
+        } catch (RuntimeException ignored) {
+            return false;
+        }
     }
 
     boolean supports38Khz() {
         if (!isAvailable()) return false;
-        ConsumerIrManager.CarrierFrequencyRange[] ranges = manager.getCarrierFrequencies();
+        ConsumerIrManager.CarrierFrequencyRange[] ranges;
+        try {
+            ranges = manager.getCarrierFrequencies();
+        } catch (RuntimeException ignored) {
+            // Some vendor IR HALs do not expose frequency ranges even though transmit works.
+            return true;
+        }
         if (ranges == null || ranges.length == 0) return true;
         for (ConsumerIrManager.CarrierFrequencyRange range : ranges) {
             if (range.getMinFrequency() <= FREQUENCY && range.getMaxFrequency() >= FREQUENCY) return true;
