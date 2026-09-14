@@ -1,0 +1,32 @@
+plugins { id 'com.android.application' }
+
+android {
+    namespace 'com.yosef.konkaremote'
+    compileSdk 35
+
+    defaultConfig {
+        applicationId 'com.yosef.konkaremote'
+        minSdk 23
+        targetSdk 35
+        versionCode 2
+        versionName '1.0.1'
+    }
+
+    signingConfigs {
+        release {
+            storeFile file('../konka-release.jks')
+            storePassword 'YosefKonka2026!'
+            keyAlias 'konka'
+            keyPassword 'YosefKonka2026!'
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled true
+            shrinkResources true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            signingConfig signingConfigs.release
+        }
+    }
+}
