@@ -135,6 +135,9 @@ public final class MainActivity extends Activity {
         rockers.addView(rocker("CH", "القناة", "CH_UP", "CH_DOWN"), weightedHeight(1, 176, 7));
         remote.addView(rockers, matchWrap(0, 18));
 
+        remote.addView(caption("اتجاهات الشاشة"), matchWrap(0, 8));
+        remote.addView(directionPad(), matchWrap(0, 18));
+
         LinearLayout utility = row();
         utility.setGravity(Gravity.CENTER);
         addUtility(utility, "↩", "رجوع", "BACK");
@@ -204,6 +207,31 @@ public final class MainActivity extends Activity {
         frame.addView(line, matchWrap(0, 0));
         frame.addView(repeatingCommandButton("−", downKey, 29), match(56));
         return frame;
+    }
+
+    private View directionPad() {
+        LinearLayout pad = column();
+        pad.setGravity(Gravity.CENTER);
+        LinearLayout top = row();
+        top.setGravity(Gravity.CENTER);
+        top.addView(commandButton("▲\nفوق", "UP", 13), size(86, 52));
+        pad.addView(top, matchWrap(0, 6));
+        LinearLayout middle = row();
+        middle.setGravity(Gravity.CENTER);
+        middle.addView(commandButton("◀\nيسار", "LEFT", 12), size(86, 52));
+        middle.addView(commandButton("OK", "ENTER", 15), size(72, 52));
+        middle.addView(commandButton("يمين\n▶", "RIGHT", 12), size(86, 52));
+        pad.addView(middle, matchWrap(0, 6));
+        LinearLayout bottom = row();
+        bottom.setGravity(Gravity.CENTER);
+        bottom.addView(commandButton("▼\nتحت", "DOWN", 13), size(86, 52));
+        pad.addView(bottom);
+        if (!commands.containsKey("UP")) {
+            TextView note = label("الاتجاهات غير متوفرة في ملف Aiwa الحالي — اختر Konka STAOS من الأجهزة للتجربة", 9, Color.rgb(137, 146, 158), false);
+            note.setGravity(Gravity.CENTER);
+            pad.addView(note, matchWrap(8, 0));
+        }
+        return pad;
     }
 
     private void addNumberPad(LinearLayout parent) {
@@ -357,8 +385,13 @@ public final class MainActivity extends Activity {
     }
 
     private boolean send(int function, boolean vibrate) {
+        return sendForProfile(profile, function, vibrate);
+    }
+
+    private boolean sendForProfile(String selectedProfile, int function, boolean vibrate) {
         try {
-            ir.sendAiwa(function);
+            if (RemoteProfiles.PROFILE_STAOS.equals(selectedProfile)) ir.sendKonkaStaos(function);
+            else ir.sendAiwa(function);
             if (vibrate) haptic();
             status.setText("✓  تم إرسال الأمر");
             status.setTextColor(GREEN);
@@ -429,9 +462,9 @@ public final class MainActivity extends Activity {
     private void showProfilePicker() {
         new AlertDialog.Builder(this)
                 .setTitle("اختيار التلفزيون")
-                .setSingleChoiceItems(new String[]{"HiVER H43F01 — RID 5040-A", "Konka KK-Y199"},
-                        RemoteProfiles.PROFILE_5040_B.equals(profile) ? 1 : 0, (dialog, which) -> {
-                            select(which == 0 ? RemoteProfiles.PROFILE_5040_A : RemoteProfiles.PROFILE_5040_B);
+                .setSingleChoiceItems(new String[]{"HiVER H43F01 — RID 5040-A", "Konka KK-Y199", "Konka STAOS — اتجاهات وOK"},
+                        RemoteProfiles.PROFILE_5040_B.equals(profile) ? 1 : RemoteProfiles.PROFILE_STAOS.equals(profile) ? 2 : 0, (dialog, which) -> {
+                            select(which == 0 ? RemoteProfiles.PROFILE_5040_A : which == 1 ? RemoteProfiles.PROFILE_5040_B : RemoteProfiles.PROFILE_STAOS);
                             dialog.dismiss();
                         })
                 .setPositiveButton("ريموت جوكر", (d, w) -> showJokerPicker())
@@ -441,13 +474,13 @@ public final class MainActivity extends Activity {
     private void showJokerPicker() {
         new AlertDialog.Builder(this).setTitle("جوكر — فحص التوافق")
                 .setMessage("وجّه الهاتف نحو التلفزيون. لا يُحفظ الملف إلا بعد تأكيد استجابة التلفزيون.")
-                .setItems(new String[]{"اختبار RID 5040-A", "اختبار Konka KK-Y199"}, (d, which) ->
-                        testCandidate(which == 0 ? RemoteProfiles.PROFILE_5040_A : RemoteProfiles.PROFILE_5040_B))
+                .setItems(new String[]{"اختبار RID 5040-A", "اختبار Konka KK-Y199", "اختبار Konka STAOS مع الاتجاهات"}, (d, which) ->
+                        testCandidate(which == 0 ? RemoteProfiles.PROFILE_5040_A : which == 1 ? RemoteProfiles.PROFILE_5040_B : RemoteProfiles.PROFILE_STAOS))
                 .setNegativeButton("إلغاء", null).show();
     }
 
     private void testCandidate(String candidate) {
-        if (!send(RemoteProfiles.power(candidate), true)) return;
+        if (!sendForProfile(candidate, RemoteProfiles.power(candidate), true)) return;
         new AlertDialog.Builder(this).setTitle("هل استجاب التلفزيون؟")
                 .setMessage(RemoteProfiles.title(candidate))
                 .setPositiveButton("نعم، احفظ الملف", (d, w) -> select(candidate))

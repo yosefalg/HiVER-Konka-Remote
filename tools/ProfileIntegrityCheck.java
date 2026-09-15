@@ -14,6 +14,10 @@ public final class ProfileIntegrityCheck {
                 new String[]{"POWER=1","MUTE=10","CH_UP=2","CH_DOWN=3","VOL_UP=4","VOL_DOWN=5",
                         "MENU=29","INPUT=14","BACK=12","INFO=11","SLEEP=13",
                         "0=16","1=17","2=18","3=19","4=20","5=21","6=22","7=23","8=24","9=25"});
+        verify(RemoteProfiles.PROFILE_STAOS,
+                new String[]{"POWER=70","MUTE=90","CH_UP=31","CH_DOWN=25","VOL_UP=19","VOL_DOWN=18",
+                        "UP=43","DOWN=44","LEFT=45","RIGHT=46","ENTER=47","MENU=21","INPUT=4","BACK=48","INFO=20","SLEEP=69",
+                        "0=80","1=73","2=85","3=89","4=77","5=81","6=93","7=72","8=84","9=88"});
         System.out.println("Verified public Konka profiles: no unknown or guessed commands");
     }
 

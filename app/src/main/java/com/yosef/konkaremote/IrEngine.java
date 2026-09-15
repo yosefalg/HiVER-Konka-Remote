@@ -53,6 +53,32 @@ final class IrEngine {
             pattern[p++] = ((command >>> bit) & 1) == 1 ? 1630 : 505;
         }
         pattern[p] = 618;
-        manager.transmit(FREQUENCY, pattern);
+        try {
+            manager.transmit(FREQUENCY, pattern);
+        } catch (SecurityException e) {
+            throw new IllegalStateException("تعذر الوصول إلى مرسل الأشعة تحت الحمراء في الهاتف");
+        }
+    }
+
+    /** Public MStar/MediaTek Konka STAOS protocol used by the optional STAOS profile. */
+    void sendKonkaStaos(int function) {
+        if (!isAvailable()) throw new IllegalStateException("لا يوجد مرسل أشعة تحت الحمراء في الهاتف");
+        // IR_KONKA.h: 3ms header pulse/space, 16 data bits, 500us pulse,
+        // 1500us for 0, 2500us for 1, and 4ms trailer space.
+        int frame = (0x02 << 8) | (function & 0xFF);
+        int[] pattern = new int[2 + (16 * 2) + 1];
+        int p = 0;
+        pattern[p++] = 3000;
+        pattern[p++] = 3000;
+        for (int bit = 15; bit >= 0; bit--) {
+            pattern[p++] = 500;
+            pattern[p++] = ((frame >>> bit) & 1) == 1 ? 2500 : 1500;
+        }
+        pattern[p] = 4000;
+        try {
+            manager.transmit(FREQUENCY, pattern);
+        } catch (SecurityException e) {
+            throw new IllegalStateException("تعذر الوصول إلى مرسل الأشعة تحت الحمراء في الهاتف");
+        }
     }
 }
