@@ -52,6 +52,9 @@ public final class MainActivity extends Activity {
     private boolean vibrationEnabled;
     private boolean hardwareKeysEnabled;
     private int repeatDelay;
+    private final Handler channelHandler = new Handler(Looper.getMainLooper());
+    private int channelSequence;
+    private long lastHardwareSend;
 
     @Override public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -283,12 +286,15 @@ public final class MainActivity extends Activity {
             showSendError("لا يوجد مرسل أشعة تحت الحمراء في الهاتف");
             return;
         }
-        final Handler handler = new Handler(Looper.getMainLooper());
+        final int sequence = ++channelSequence;
+        channelHandler.removeCallbacksAndMessages(null);
         for (int i = 0; i < value.length(); i++) {
             Integer code = commands.get(String.valueOf(value.charAt(i)));
             if (code == null) continue;
             final int function = code;
-            handler.postDelayed(() -> send(function, false), i * 180L);
+            channelHandler.postDelayed(() -> {
+                if (sequence == channelSequence) send(function, false);
+            }, i * 180L);
         }
         haptic();
     }
@@ -449,6 +455,8 @@ public final class MainActivity extends Activity {
     }
 
     private void select(String selected) {
+        channelSequence++;
+        channelHandler.removeCallbacksAndMessages(null);
         profile = selected;
         commands = RemoteProfiles.commands(profile);
         prefs.edit().putString("profile", profile).apply();
@@ -465,7 +473,11 @@ public final class MainActivity extends Activity {
     @Override public boolean onKeyDown(int keyCode, KeyEvent event) {
         if (hardwareKeysEnabled && (keyCode == KeyEvent.KEYCODE_VOLUME_UP || keyCode == KeyEvent.KEYCODE_VOLUME_DOWN)) {
             Integer function = commands.get(keyCode == KeyEvent.KEYCODE_VOLUME_UP ? "VOL_UP" : "VOL_DOWN");
-            if (function != null) send(function, event.getRepeatCount() == 0);
+            long now = android.os.SystemClock.elapsedRealtime();
+            if (function != null && (event.getRepeatCount() == 0 || now - lastHardwareSend >= repeatDelay)) {
+                lastHardwareSend = now;
+                send(function, event.getRepeatCount() == 0);
+            }
             return true;
         }
         return super.onKeyDown(keyCode, event);
@@ -474,6 +486,12 @@ public final class MainActivity extends Activity {
     @Override public boolean onKeyUp(int keyCode, KeyEvent event) {
         if (hardwareKeysEnabled && (keyCode == KeyEvent.KEYCODE_VOLUME_UP || keyCode == KeyEvent.KEYCODE_VOLUME_DOWN)) return true;
         return super.onKeyUp(keyCode, event);
+    }
+
+    @Override protected void onDestroy() {
+        channelSequence++;
+        channelHandler.removeCallbacksAndMessages(null);
+        super.onDestroy();
     }
 
     private TextView caption(String text) {
