@@ -473,26 +473,31 @@ public final class MainActivity extends Activity {
                             dialog.dismiss();
                         })
                 .setPositiveButton("ريموت جوكر", (d, w) -> showJokerPicker())
-                .setNeutralButton("فحص يدوي شامل", (d, w) -> showManualScan(0))
+                .setNeutralButton("فحص يدوي للملفات", (d, w) -> showManualScan(0))
                 .setNegativeButton("إلغاء", null).show();
     }
 
-    /** Guided offline scan of documented profiles; nothing is saved without acceptance. */
+    /**
+     * Guided offline scan of documented profiles; nothing is saved without acceptance.
+     * The phone has an IR transmitter but no IR receiver, so the app deliberately
+     * asks the user to confirm the TV response instead of pretending to detect it.
+     */
     private void showManualScan(int index) {
         final String[] candidates = {RemoteProfiles.PROFILE_5040_A,
                 RemoteProfiles.PROFILE_5040_B, RemoteProfiles.PROFILE_STAOS};
         if (index >= candidates.length) {
             new AlertDialog.Builder(this).setTitle("اكتمل الفحص")
-                    .setMessage("لم يتم اعتماد أي ملف. يمكنك إعادة الفحص أو اختيار ملف من الأجهزة.")
+                    .setMessage("لم يتم اعتماد أي ملف. لا يستطيع الهاتف قياس استجابة الأشعة؛ التأكيد يتم من تغيّر الشاشة فقط. يمكنك إعادة الفحص أو اختيار ملف من الأجهزة.")
                     .setPositiveButton("حسناً", null).show();
             return;
         }
         String candidate = candidates[index];
         if (!sendForProfile(candidate, RemoteProfiles.power(candidate), true)) return;
         new AlertDialog.Builder(this)
-                .setTitle("فحص " + (index + 1) + " من " + candidates.length)
+                .setTitle("فحص يدوي " + (index + 1) + " من " + candidates.length)
                 .setMessage("تم إرسال زر التشغيل من ملف:\n" + RemoteProfiles.title(candidate)
-                        + "\n\nإذا تغيّر التلفاز اضغط «استجاب». وإلا اضغط «التالي».\n"
+                        + "\n\nإذا تغيّر التلفاز (تشغيل/إيقاف) اضغط «استجاب». وإلا اضغط «التالي».\n"
+                        + "هذا اختبار موجّه لتردد 38kHz وملف موثق؛ لا توجد أكواد عشوائية ولا حفظ تلقائي.\n"
                         + "لا تُحفظ أي أكواد قبل موافقتك.")
                 .setPositiveButton("استجاب — حفظ", (d, w) -> select(candidate))
                 .setNeutralButton("التالي", (d, w) -> showManualScan(index + 1))
