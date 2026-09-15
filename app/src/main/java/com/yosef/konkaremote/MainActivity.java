@@ -10,6 +10,7 @@ import android.graphics.drawable.GradientDrawable;
 import android.graphics.drawable.StateListDrawable;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.CountDownTimer;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.VibrationEffect;
@@ -22,6 +23,7 @@ import android.view.ViewGroup;
 import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.LinearLayout;
+import android.widget.ProgressBar;
 import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -493,15 +495,39 @@ public final class MainActivity extends Activity {
         }
         String candidate = candidates[index];
         if (!sendForProfile(candidate, RemoteProfiles.power(candidate), true)) return;
-        new AlertDialog.Builder(this)
+        LinearLayout content = new LinearLayout(this);
+        content.setOrientation(LinearLayout.VERTICAL);
+        content.setPadding(dp(20), dp(4), dp(20), dp(4));
+        TextView file = label("الملف الحالي: Konka / HiVER", 16, TEXT, true);
+        TextView name = label("المرشح: " + RemoteProfiles.title(candidate), 14, MUTED, false);
+        TextView warning = label("⚠ تأكيد الاستجابة بصري من التلفاز؛ الهاتف لا يملك مستقبلاً لقياس IR.", 13, Color.rgb(255, 174, 72), true);
+        warning.setGravity(Gravity.CENTER);
+        ProgressBar progress = new ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal);
+        progress.setMax(20); progress.setProgress(20);
+        TextView timerText = label("جاهز — راقب الشاشة الآن", 14, CYAN, true);
+        Button confirm = raisedButton("✓  استجاب التلفاز — حفظ الملف", 16, GREEN);
+        confirm.setEnabled(true);
+        Button next = raisedButton("التالي بعد 20 ثانية", 15, KEY_TOP);
+        next.setEnabled(false);
+        Button restart = raisedButton("إلغاء وإعادة الفحص", 14, RED);
+        content.addView(file); content.addView(name); content.addView(warning);
+        content.addView(progress, new LinearLayout.LayoutParams(-1, dp(28)));
+        content.addView(timerText); content.addView(confirm, new LinearLayout.LayoutParams(-1, dp(62)));
+        content.addView(next, new LinearLayout.LayoutParams(-1, dp(54)));
+        content.addView(restart, new LinearLayout.LayoutParams(-1, dp(50)));
+        AlertDialog dialog = new AlertDialog.Builder(this)
                 .setTitle("فحص يدوي " + (index + 1) + " من " + candidates.length)
-                .setMessage("تم إرسال زر التشغيل من ملف:\n" + RemoteProfiles.title(candidate)
-                        + "\n\nإذا تغيّر التلفاز (تشغيل/إيقاف) اضغط «استجاب». وإلا اضغط «التالي».\n"
-                        + "هذا اختبار موجّه لتردد 38kHz وملف موثق؛ لا توجد أكواد عشوائية ولا حفظ تلقائي.\n"
-                        + "لا تُحفظ أي أكواد قبل موافقتك.")
-                .setPositiveButton("استجاب — حفظ", (d, w) -> select(candidate))
-                .setNeutralButton("التالي", (d, w) -> showManualScan(index + 1))
-                .setNegativeButton("إلغاء", null).show();
+                .setView(content).setNegativeButton("إغلاق", null).create();
+        confirm.setOnClickListener(v -> { dialog.dismiss(); select(candidate); });
+        next.setOnClickListener(v -> { dialog.dismiss(); showManualScan(index + 1); });
+        restart.setOnClickListener(v -> { dialog.dismiss(); showManualScan(0); });
+        CountDownTimer timer = new CountDownTimer(20000, 1000) {
+            public void onTick(long left) { int sec = (int)((left + 999) / 1000); progress.setProgress(sec); timerText.setText("الانتظار قبل المرشح التالي: " + sec + " ثانية"); next.setText("التالي (" + sec + ")"); }
+            public void onFinish() { progress.setProgress(0); timerText.setText("انتهى الانتظار — يمكنك متابعة الفحص"); next.setText("التالي"); next.setEnabled(true); }
+        };
+        dialog.setOnDismissListener(d -> timer.cancel());
+        dialog.setOnShowListener(d -> timer.start());
+        dialog.show();
     }
 
     private void showJokerPicker() {
