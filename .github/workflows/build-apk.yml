@@ -16,6 +16,17 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
+      - name: Verify IR profiles and offline permissions
+        run: |
+          if grep -q 'android.permission.INTERNET' app/src/main/AndroidManifest.xml; then
+            echo "Internet permission is forbidden"
+            exit 1
+          fi
+          mkdir -p build/profile-test
+          javac -d build/profile-test \
+            app/src/main/java/com/yosef/konkaremote/RemoteProfiles.java \
+            tools/ProfileIntegrityCheck.java
+          java -cp build/profile-test com.yosef.konkaremote.ProfileIntegrityCheck
       - name: Build debug APK
         run: gradle --no-daemon :app:assembleDebug
       - name: Upload APK

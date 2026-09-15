@@ -7,9 +7,12 @@ import android.graphics.Color;
 import android.graphics.Typeface;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.os.VibrationEffect;
 import android.os.Vibrator;
 import android.view.Gravity;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
@@ -115,10 +118,42 @@ public final class MainActivity extends Activity {
     private View verticalControl(String title, String up, String upKey, String down, String downKey) {
         LinearLayout box = column(); box.setGravity(Gravity.CENTER);
         TextView t = label(title, 14, Color.DKGRAY, true); t.setGravity(Gravity.CENTER); box.addView(t, matchWrap(0, 8));
-        box.addView(commandButton(up, upKey, Color.WHITE, 26), match(70));
+        box.addView(repeatingCommandButton(up, upKey, Color.WHITE, 26), match(70));
         TextView line = label("•", 18, Color.LTGRAY, false); line.setGravity(Gravity.CENTER); box.addView(line, matchWrap(0, 0));
-        box.addView(commandButton(down, downKey, Color.WHITE, 28), match(70));
+        box.addView(repeatingCommandButton(down, downKey, Color.WHITE, 28), match(70));
         return box;
+    }
+
+    private Button repeatingCommandButton(String text, String key, int color, int textSize) {
+        Button b = commandButton(text, key, color, textSize);
+        Integer code = commands.get(key);
+        if (code == null) return b;
+        b.setOnClickListener(null);
+        Handler handler = new Handler(Looper.getMainLooper());
+        final boolean[] held = {false};
+        Runnable repeat = new Runnable() {
+            @Override public void run() {
+                if (!held[0]) return;
+                send(code);
+                handler.postDelayed(this, 165);
+            }
+        };
+        b.setOnTouchListener((v, event) -> {
+            if (event.getAction() == MotionEvent.ACTION_DOWN) {
+                held[0] = true;
+                send(code);
+                handler.postDelayed(repeat, 420);
+                return true;
+            }
+            if (event.getAction() == MotionEvent.ACTION_UP || event.getAction() == MotionEvent.ACTION_CANCEL) {
+                held[0] = false;
+                handler.removeCallbacks(repeat);
+                v.performClick();
+                return true;
+            }
+            return false;
+        });
+        return b;
     }
 
     private Button commandButton(String text, String key, int color, int textSize) {
