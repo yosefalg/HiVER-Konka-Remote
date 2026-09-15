@@ -15,9 +15,11 @@ import android.os.Looper;
 import android.os.VibrationEffect;
 import android.os.Vibrator;
 import android.view.Gravity;
+import android.view.KeyEvent;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
@@ -48,18 +50,21 @@ public final class MainActivity extends Activity {
     private TextView channelDisplay;
     private String typedChannel = "";
     private boolean vibrationEnabled;
+    private boolean hardwareKeysEnabled;
     private int repeatDelay;
 
     @Override public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         getWindow().setStatusBarColor(BG);
         getWindow().setNavigationBarColor(BG);
+        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         ir = new IrEngine(this);
         vibrator = (Vibrator) getSystemService(Context.VIBRATOR_SERVICE);
         prefs = getSharedPreferences("konka_remote", MODE_PRIVATE);
         profile = prefs.getString("profile", RemoteProfiles.PROFILE_5040_A);
         commands = RemoteProfiles.commands(profile);
         vibrationEnabled = prefs.getBoolean("vibration", true);
+        hardwareKeysEnabled = prefs.getBoolean("hardware_keys", true);
         repeatDelay = prefs.getInt("repeat_delay", 165);
         showRemote();
     }
@@ -162,7 +167,7 @@ public final class MainActivity extends Activity {
         grip.setGravity(Gravity.CENTER);
         remote.addView(grip, matchWrap(22, 0));
 
-        TextView hint = label("الضغط المطوّل يكرر الصوت والقنوات تلقائياً", 11, MUTED, false);
+        TextView hint = label("الضغط المطوّل أو أزرار صوت الهاتف للتحكم بالتلفزيون", 11, MUTED, false);
         hint.setGravity(Gravity.CENTER);
         page.addView(hint, constrained(0, 7));
         TextView footer = label("Consumer IR حقيقي  •  بدون إنترنت  •  بدون إعلانات", 10, Color.rgb(111, 121, 137), false);
@@ -374,16 +379,21 @@ public final class MainActivity extends Activity {
 
     private void showSettings() {
         String vibration = vibrationEnabled ? "الاهتزاز: يعمل" : "الاهتزاز: متوقف";
+        String hardwareKeys = hardwareKeysEnabled ? "أزرار صوت الهاتف: تتحكم بالتلفزيون" : "أزرار صوت الهاتف: متوقفة";
         String speed = repeatDelay <= 130 ? "سريع" : repeatDelay >= 220 ? "هادئ" : "متوسط";
         new AlertDialog.Builder(this)
                 .setTitle("إعدادات الريموت")
-                .setItems(new String[]{vibration, "سرعة التكرار: " + speed, "مسح القنوات المفضلة", "فحص توافق جوكر"}, (d, which) -> {
+                .setItems(new String[]{vibration, hardwareKeys, "سرعة التكرار: " + speed, "مسح القنوات المفضلة", "فحص توافق جوكر"}, (d, which) -> {
                     if (which == 0) {
                         vibrationEnabled = !vibrationEnabled;
                         prefs.edit().putBoolean("vibration", vibrationEnabled).apply();
                         Toast.makeText(this, vibrationEnabled ? "تم تشغيل الاهتزاز" : "تم إيقاف الاهتزاز", Toast.LENGTH_SHORT).show();
-                    } else if (which == 1) showRepeatPicker();
-                    else if (which == 2) confirmClearFavorites();
+                    } else if (which == 1) {
+                        hardwareKeysEnabled = !hardwareKeysEnabled;
+                        prefs.edit().putBoolean("hardware_keys", hardwareKeysEnabled).apply();
+                        Toast.makeText(this, hardwareKeysEnabled ? "أزرار الصوت تتحكم بالتلفزيون" : "تم إيقاف تحكم أزرار الصوت", Toast.LENGTH_SHORT).show();
+                    } else if (which == 2) showRepeatPicker();
+                    else if (which == 3) confirmClearFavorites();
                     else showJokerPicker();
                 })
                 .setNegativeButton("إغلاق", null)
@@ -450,6 +460,20 @@ public final class MainActivity extends Activity {
         if (!vibrationEnabled || vibrator == null || !vibrator.hasVibrator()) return;
         if (Build.VERSION.SDK_INT >= 26) vibrator.vibrate(VibrationEffect.createOneShot(18, 70));
         else vibrator.vibrate(18);
+    }
+
+    @Override public boolean onKeyDown(int keyCode, KeyEvent event) {
+        if (hardwareKeysEnabled && (keyCode == KeyEvent.KEYCODE_VOLUME_UP || keyCode == KeyEvent.KEYCODE_VOLUME_DOWN)) {
+            Integer function = commands.get(keyCode == KeyEvent.KEYCODE_VOLUME_UP ? "VOL_UP" : "VOL_DOWN");
+            if (function != null) send(function, event.getRepeatCount() == 0);
+            return true;
+        }
+        return super.onKeyDown(keyCode, event);
+    }
+
+    @Override public boolean onKeyUp(int keyCode, KeyEvent event) {
+        if (hardwareKeysEnabled && (keyCode == KeyEvent.KEYCODE_VOLUME_UP || keyCode == KeyEvent.KEYCODE_VOLUME_DOWN)) return true;
+        return super.onKeyUp(keyCode, event);
     }
 
     private TextView caption(String text) {
