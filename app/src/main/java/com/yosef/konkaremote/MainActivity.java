@@ -70,11 +70,11 @@ public final class MainActivity extends Activity {
 
         LinearLayout top = row();
         top.setGravity(Gravity.CENTER);
-        top.addView(commandButton("◉\nكتم", "MUTE", Color.WHITE, 14), size(94, 72));
-        addSpace(top, 10);
-        top.addView(commandButton("⏻", "POWER", Color.WHITE, 34), size(94, 72));
-        addSpace(top, 10);
-        top.addView(commandButton("◌\nبحث", "SCAN", Color.WHITE, 14), size(94, 72));
+        top.addView(circleCommandButton("⌁\nكتم", "MUTE", Color.WHITE, 14), size(86, 86));
+        addSpace(top, 16);
+        top.addView(circleCommandButton("⏻", "POWER", Color.WHITE, 34), size(86, 86));
+        addSpace(top, 16);
+        top.addView(circleCommandButton("◌\nبحث", "SCAN", Color.WHITE, 14), size(86, 86));
         root.addView(top, matchWrap(0, 18));
 
         LinearLayout utility = row();
@@ -117,12 +117,12 @@ public final class MainActivity extends Activity {
 
     private View dpad() {
         LinearLayout pad = column(); pad.setGravity(Gravity.CENTER);
-        LinearLayout up = row(); up.setGravity(Gravity.CENTER); up.addView(commandButton("▲", "UP", Color.WHITE, 23), size(70, 52)); pad.addView(up);
+        LinearLayout up = row(); up.setGravity(Gravity.CENTER); up.addView(circleCommandButton("▲", "UP", Color.WHITE, 21), size(66, 66)); pad.addView(up);
         LinearLayout mid = row(); mid.setGravity(Gravity.CENTER);
-        mid.addView(commandButton("◀", "LEFT", Color.WHITE, 23), size(70, 58));
-        mid.addView(commandButton("OK", "OK", Color.rgb(229,231,235), 16), size(72, 60));
-        mid.addView(commandButton("▶", "RIGHT", Color.WHITE, 23), size(70, 58)); pad.addView(mid);
-        LinearLayout down = row(); down.setGravity(Gravity.CENTER); down.addView(commandButton("▼", "DOWN", Color.WHITE, 23), size(70, 52)); pad.addView(down);
+        mid.addView(circleCommandButton("◀", "LEFT", Color.WHITE, 21), size(66, 66));
+        mid.addView(circleCommandButton("OK", "OK", Color.rgb(229,231,235), 15), size(72, 72));
+        mid.addView(circleCommandButton("▶", "RIGHT", Color.WHITE, 21), size(66, 66)); pad.addView(mid);
+        LinearLayout down = row(); down.setGravity(Gravity.CENTER); down.addView(circleCommandButton("▼", "DOWN", Color.WHITE, 21), size(66, 66)); pad.addView(down);
         return pad;
     }
 
@@ -141,6 +141,13 @@ public final class MainActivity extends Activity {
         Integer code = commands.get(key);
         if (code == null) { b.setAlpha(.38f); b.setEnabled(false); }
         else b.setOnClickListener(v -> send(code));
+        return b;
+    }
+
+    private Button circleCommandButton(String text, String key, int color, int textSize) {
+        Button b = commandButton(text, key, color, textSize);
+        b.setBackground(circleBackground(color));
+        b.setElevation(dp(3));
         return b;
     }
 
@@ -182,6 +189,7 @@ public final class MainActivity extends Activity {
     private TextView label(String text, int sp, int color, boolean bold) { TextView v = new TextView(this); v.setText(text); v.setTextSize(sp); v.setTextColor(color); if (bold) v.setTypeface(Typeface.DEFAULT, Typeface.BOLD); return v; }
     private Button button(String text, int bg, int fg) { Button b = new Button(this); b.setText(text); b.setTextColor(fg); b.setTextSize(15); b.setAllCaps(false); b.setTypeface(Typeface.DEFAULT, Typeface.BOLD); b.setGravity(Gravity.CENTER); b.setPadding(dp(4),0,dp(4),0); b.setBackground(roundRect(bg, 18)); return b; }
     private android.graphics.drawable.GradientDrawable roundRect(int color, int radius) { android.graphics.drawable.GradientDrawable d = new android.graphics.drawable.GradientDrawable(); d.setColor(color); d.setCornerRadius(dp(radius)); if (color == Color.WHITE) d.setStroke(dp(1), Color.rgb(229,231,235)); return d; }
+    private android.graphics.drawable.GradientDrawable circleBackground(int color) { android.graphics.drawable.GradientDrawable d = new android.graphics.drawable.GradientDrawable(); d.setShape(android.graphics.drawable.GradientDrawable.OVAL); d.setColor(color); if (color == Color.WHITE) d.setStroke(dp(1), Color.rgb(229,231,235)); return d; }
     private LinearLayout.LayoutParams size(int w, int h) { return new LinearLayout.LayoutParams(dp(w), dp(h)); }
     private LinearLayout.LayoutParams match(int h) { return new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(h)); }
     private LinearLayout.LayoutParams matchWrap(int top, int bottom) { LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT); p.setMargins(0,dp(top),0,dp(bottom)); return p; }
