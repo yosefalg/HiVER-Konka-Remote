@@ -80,7 +80,8 @@ public final class MainActivity extends Activity {
 
         LinearLayout page = column();
         page.setGravity(Gravity.CENTER_HORIZONTAL);
-        page.setPadding(dp(14), dp(12), dp(14), dp(40));
+        // Keep the remote below the system status bar on edge-to-edge devices.
+        page.setPadding(dp(14), dp(38), dp(14), dp(40));
         scroll.addView(page);
 
         LinearLayout header = row();
@@ -218,6 +219,8 @@ public final class MainActivity extends Activity {
         pad.addView(top, matchWrap(0, 6));
         LinearLayout middle = row();
         middle.setGravity(Gravity.CENTER);
+        // Direction keys must read physically left-to-right even in the Arabic UI.
+        middle.setLayoutDirection(View.LAYOUT_DIRECTION_LTR);
         middle.addView(commandButton("◀\nيسار", "LEFT", 12), size(86, 52));
         middle.addView(commandButton("OK", "ENTER", 15), size(72, 52));
         middle.addView(commandButton("يمين\n▶", "RIGHT", 12), size(86, 52));
@@ -371,7 +374,9 @@ public final class MainActivity extends Activity {
         Button b = raisedButton(text, textSize, KEY_TOP);
         Integer code = commands.get(key);
         if (code == null) {
-            b.setAlpha(.35f);
+            b.setAlpha(.48f);
+            b.setTextColor(Color.rgb(145, 153, 166));
+            b.setContentDescription(text.replace("\n", " ") + " — غير متوفر لهذا الموديل");
             b.setEnabled(false);
         } else b.setOnClickListener(v -> send(code, true));
         return b;
@@ -552,6 +557,18 @@ public final class MainActivity extends Activity {
         b.setBackground(pressSelector(keyGradient(topColor, darken(topColor)), keyGradient(KEY_PRESSED, Color.BLACK)));
         b.setElevation(dp(5));
         b.setStateListAnimator(null);
+        // A short scale/elevation response makes every key feel like a physical remote.
+        b.setOnTouchListener((v, event) -> {
+            int action = event.getActionMasked();
+            if (action == MotionEvent.ACTION_DOWN) {
+                v.animate().scaleX(.96f).scaleY(.96f).setDuration(60).start();
+                v.setElevation(dp(2));
+            } else if (action == MotionEvent.ACTION_UP || action == MotionEvent.ACTION_CANCEL) {
+                v.animate().scaleX(1f).scaleY(1f).setDuration(110).start();
+                v.setElevation(dp(5));
+            }
+            return false;
+        });
         return b;
     }
 
