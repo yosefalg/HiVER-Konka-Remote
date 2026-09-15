@@ -22,7 +22,6 @@ import java.util.Map;
 
 public final class MainActivity extends Activity {
     private static final int NAVY = Color.rgb(17, 24, 39);
-    private static final int BLUE = Color.rgb(37, 99, 235);
     private static final int RED = Color.rgb(220, 38, 38);
     private static final int BG = Color.rgb(243, 244, 246);
     private IrEngine ir;
@@ -53,11 +52,11 @@ public final class MainActivity extends Activity {
 
         LinearLayout header = row();
         TextView brand = label("تلفزيون Konka", 24, NAVY, true);
-        TextView rid = label("HiVER H43F01 • RID 5040", 12, Color.GRAY, false);
+        TextView rid = label(RemoteProfiles.title(profile), 12, Color.GRAY, false);
         LinearLayout titleBox = column();
         titleBox.addView(brand); titleBox.addView(rid);
         header.addView(titleBox, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
-        Button settings = button("تبديل الملف", NAVY, Color.WHITE);
+        Button settings = button("اختيار / جوكر", NAVY, Color.WHITE);
         settings.setOnClickListener(v -> showProfilePicker());
         header.addView(settings, size(112, 48));
         header.setPadding(dp(16), dp(14), dp(16), dp(14));
@@ -74,24 +73,22 @@ public final class MainActivity extends Activity {
         addSpace(top, 16);
         top.addView(circleCommandButton("⏻", "POWER", Color.WHITE, 34), size(86, 86));
         addSpace(top, 16);
-        top.addView(circleCommandButton("◌\nبحث", "SCAN", Color.WHITE, 14), size(86, 86));
+        top.addView(circleCommandButton("▣\nالمصدر", "INPUT", Color.WHITE, 14), size(86, 86));
         root.addView(top, matchWrap(0, 18));
 
         LinearLayout utility = row();
         utility.setGravity(Gravity.CENTER);
-        utility.addView(commandButton("رجوع", "BACK", Color.WHITE, 14), size(92, 58));
+        utility.addView(commandButton("رجوع/سابق", "BACK", Color.WHITE, 12), size(92, 58));
         addSpace(utility, 10);
-        utility.addView(commandButton("الرئيسية", "HOME", Color.WHITE, 14), size(92, 58));
+        utility.addView(commandButton("معلومات", "INFO", Color.WHITE, 14), size(92, 58));
         addSpace(utility, 10);
         utility.addView(commandButton("القائمة", "MENU", Color.WHITE, 14), size(92, 58));
         root.addView(utility, matchWrap(0, 18));
 
-        root.addView(dpad(), matchWrap(0, 18));
-
         LinearLayout controls = row(); controls.setGravity(Gravity.CENTER);
-        controls.addView(commandButton("+", "VOL_UP", Color.WHITE, 26), size(74, 62));
-        TextView vol = label("VOL", 15, Color.GRAY, true); vol.setGravity(Gravity.CENTER); controls.addView(vol, size(66, 62));
-        controls.addView(commandButton("−", "VOL_DOWN", Color.WHITE, 26), size(74, 62));
+        controls.addView(verticalControl("الصوت", "+", "VOL_UP", "−", "VOL_DOWN"), size(132, 180));
+        addSpace(controls, 28);
+        controls.addView(verticalControl("القناة", "+", "CH_UP", "−", "CH_DOWN"), size(132, 180));
         root.addView(controls, matchWrap(0, 18));
 
         TextView numTitle = label("لوحة الأرقام", 15, Color.DKGRAY, true);
@@ -113,17 +110,6 @@ public final class MainActivity extends Activity {
         footer.setGravity(Gravity.CENTER);
         root.addView(footer, matchWrap(14, 0));
         setContentView(scroll);
-    }
-
-    private View dpad() {
-        LinearLayout pad = column(); pad.setGravity(Gravity.CENTER);
-        LinearLayout up = row(); up.setGravity(Gravity.CENTER); up.addView(circleCommandButton("▲", "UP", Color.WHITE, 21), size(66, 66)); pad.addView(up);
-        LinearLayout mid = row(); mid.setGravity(Gravity.CENTER);
-        mid.addView(circleCommandButton("◀", "LEFT", Color.WHITE, 21), size(66, 66));
-        mid.addView(circleCommandButton("OK", "OK", Color.rgb(229,231,235), 15), size(72, 72));
-        mid.addView(circleCommandButton("▶", "RIGHT", Color.WHITE, 21), size(66, 66)); pad.addView(mid);
-        LinearLayout down = row(); down.setGravity(Gravity.CENTER); down.addView(circleCommandButton("▼", "DOWN", Color.WHITE, 21), size(66, 66)); pad.addView(down);
-        return pad;
     }
 
     private View verticalControl(String title, String up, String upKey, String down, String downKey) {
@@ -164,13 +150,31 @@ public final class MainActivity extends Activity {
     }
 
     private void showProfilePicker() {
-        final String current = profile;
         new android.app.AlertDialog.Builder(this)
-                .setTitle("اختيار ملف Konka")
-                .setMessage("وجّه الهاتف نحو التلفزيون، ثم جرّب زر التشغيل لكل ملف واختر الملف الذي استجاب له التلفزيون.")
-                .setPositiveButton("اختبار RID 5040-A", (d,w) -> { send(28); select(RemoteProfiles.PROFILE_5040_A); })
-                .setNegativeButton("اختبار Konka-B", (d,w) -> { send(1); select(RemoteProfiles.PROFILE_5040_B); })
-                .setNeutralButton("إلغاء", (d,w) -> select(current))
+                .setTitle("اختيار التلفزيون")
+                .setItems(new String[] {
+                        "HiVER H43F01 — RID 5040-A",
+                        "Konka KK-Y199",
+                        "جوكر: اختبار ملفات التشغيل الموثقة"
+                }, (d, which) -> {
+                    if (which == 0) select(RemoteProfiles.PROFILE_5040_A);
+                    else if (which == 1) select(RemoteProfiles.PROFILE_5040_B);
+                    else showJokerPicker();
+                })
+                .setNegativeButton("إلغاء", null)
+                .show();
+    }
+
+    private void showJokerPicker() {
+        new android.app.AlertDialog.Builder(this)
+                .setTitle("ريموت جوكر — فحص آمن")
+                .setMessage("وجّه الهاتف نحو التلفزيون واختر ملفاً واحداً. يُرسل زر التشغيل الحقيقي لذلك الملف فقط؛ إذا استجاب التلفزيون يُحفظ الملف.")
+                .setItems(new String[] {"اختبار RID 5040-A", "اختبار Konka KK-Y199"}, (d, which) -> {
+                    String candidate = which == 0 ? RemoteProfiles.PROFILE_5040_A : RemoteProfiles.PROFILE_5040_B;
+                    send(RemoteProfiles.power(candidate));
+                    select(candidate);
+                })
+                .setNegativeButton("إلغاء", null)
                 .show();
     }
 

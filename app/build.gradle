@@ -8,17 +8,8 @@ android {
         applicationId 'com.yosef.konkaremote'
         minSdk 23
         targetSdk 35
-        versionCode 5
-        versionName '1.0.4'
-    }
-
-    signingConfigs {
-        release {
-            storeFile file('../konka-release.jks')
-            storePassword 'YosefKonka2026!'
-            keyAlias 'konka'
-            keyPassword 'YosefKonka2026!'
-        }
+        versionCode 6
+        versionName '1.0.5'
     }
 
     buildTypes {
@@ -26,7 +17,6 @@ android {
             minifyEnabled true
             shrinkResources true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
-            signingConfig signingConfigs.release
         }
     }
 }
