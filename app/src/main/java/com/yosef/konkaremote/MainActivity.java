@@ -234,18 +234,18 @@ public final class MainActivity extends Activity {
         pad.setGravity(Gravity.CENTER);
         LinearLayout top = row();
         top.setGravity(Gravity.CENTER);
-        top.addView(commandButton("▲\\nفوق", "UP", 13), size(86, 52));
+        top.addView(commandButton("▲\nفوق", "UP", 13), size(86, 52));
         pad.addView(top, matchWrap(0, 6));
         LinearLayout middle = row();
         middle.setGravity(Gravity.CENTER);
         middle.setLayoutDirection(View.LAYOUT_DIRECTION_LTR);
-        middle.addView(commandButton("◀\\nيسار", "LEFT", 12), size(86, 52));
+        middle.addView(commandButton("◀\nيسار", "LEFT", 12), size(86, 52));
         middle.addView(commandButton("OK", "ENTER", 15), size(72, 52));
-        middle.addView(commandButton("يمين\\n▶", "RIGHT", 12), size(86, 52));
+        middle.addView(commandButton("يمين\n▶", "RIGHT", 12), size(86, 52));
         pad.addView(middle, matchWrap(0, 6));
         LinearLayout bottom = row();
         bottom.setGravity(Gravity.CENTER);
-        bottom.addView(commandButton("▼\\nتحت", "DOWN", 13), size(86, 52));
+        bottom.addView(commandButton("▼\nتحت", "DOWN", 13), size(86, 52));
         pad.addView(bottom);
         return pad;
     }
