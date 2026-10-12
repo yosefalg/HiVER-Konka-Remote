@@ -1,23 +1,36 @@
-# HiVER / Konka RID 5040 Remote
+# HiVER / Konka Consumer IR Remote
 
-ريموت Android أصلي يرسل إشارات الأشعة تحت الحمراء إلى تلفزيونات HiVER المتوافقة مع ملف Konka RID 5040.
+تطبيق Android محلي لإرسال إشارات **Consumer IR حقيقية** عبر مرسل الأشعة تحت الحمراء المدمج في الهاتف. لا يستخدم الإنترنت أو الإعلانات أو مفاتيح API.
 
-## البناء
+## ملفات التحكم المتاحة
 
-يفتح المشروع في Android Studio أو يُبنى عبر Gradle. يتطلب الهاتف مرسل IR فعلياً؛ التطبيق لا يعتمد على الإنترنت.
+الملفات التالية مبنية على خرائط مفاتيح وبروتوكولات منشورة في مصدر MediaTek/TCL MT9653، وليست أكواداً مخمّنة:
 
-## ملاحظات التوافق
+- **Konka STAOS** — بروتوكول Konka، customer code ‏`0x0002`، مع الاتجاهات وOK والأرقام والأزرار الملونة.
+- **Changhong TV** — NEC customer code ‏`0x40BF`.
+- **Hisense TV** — NEC customer code ‏`0x00BF`.
+- **MediaTek Smart TV** — NEC customer code ‏`0x807F`.
 
-يتضمن التطبيق ملفي Aiwa/Konka عامين موثقين (KK-Y199 وKK-Y250A) مع اختيار مباشر وفحص «جوكر» لزر التشغيل. لا يرسل الفحص إلا أمراً حقيقياً من أحد الملفين، ولا توجد أزرار بتعيينات تخمينية. التلفزيون المستهدف هو HiVER H43F01 الذي يستجيب لملف Konka RID 5040 في ريموت TECNO.
+اختيار الملف متاح من قائمة «الأجهزة»، و«ريموت جوكر» يختبر زر التشغيل لكل ملف قبل اعتماده. تُخفى مجموعة الاتجاهات عندما لا يحتوي الملف على أكواد الاتجاهات وOK؛ ولا تظهر اختصارات غير موجودة في خريطة الملف.
 
-يمكن الضغط مطولاً على أزرار الصوت والقنوات للإرسال المتكرر كما في الريموت الحقيقي.
+## توافق HiVER H43F01 / RID 5040
 
-الإصدار 1.3 يضيف لوحة اتجاهات فوق/تحت/يمين/يسار وOK. ملفا Aiwa المستخدمان مع HiVER يبقيان كما هما، وتظهر الاتجاهات فيهما معطلة لأن ملفات IRDB لا تحتوي هذه الأوامر. أُضيف ملف Konka STAOS اختياري مستند إلى تعريفات MStar/MediaTek العامة، ويستخدم بروتوكول Konka وتعمل معه الاتجاهات وOK؛ يجب اختباره من «ريموت جوكر» قبل حفظه لأن توافقه يختلف عن RID 5040.
+لم نعثر في المصدر العام المستخدم هنا على ملف يثبت تطابقاً مع **HiVER H43F01 / Welife RID 5040**. لذلك لا يدّعي التطبيق أن أي ملف أعلاه هو الريموت الأصلي. الملفات خيارات اختبار مبنية على مصادر عامة لأجهزة أخرى، ويجب تأكيد الاستجابة من التلفاز نفسه. الهاتف يرسل الإشارة ولا يملك مستقبلاً لقياس ما إذا كان التلفاز استجاب.
 
-## مصدر أكواد IR
+## مصادر الأكواد والتوقيت
 
-- [IRDB — Konka KK-Y250A](https://github.com/probonopd/irdb/blob/master/codes/Konka/Unknown_KK-Y250A/25%2C1.csv)
-- [IRDB — Konka KK-Y199](https://github.com/probonopd/irdb/blob/master/codes/Konka/Unknown_KK-Y199/25%2C1.csv)
-- [تعريف Konka STAOS العام — أكواد الاتجاهات والبروتوكول](https://github.com/TCLOpenSource/mt9653/blob/master/drivers/input/keyboard/mtk_ir/keymaps/keymap-konka-tv.c)
+المصدر: [TCLOpenSource/mt9653 — snapshot pinned to commit 85db067](https://github.com/TCLOpenSource/mt9653/tree/85db067ea371bb87753370ab99ced1e1f8ced3d8)
 
-كلا الملفين يستخدم بروتوكول Aiwa، الجهاز 25 والجهاز الفرعي 1. لا يحتاج التطبيق إذن إنترنت ولا يجمع بيانات.
+- [Konka STAOS keymap](https://github.com/TCLOpenSource/mt9653/blob/85db067ea371bb87753370ab99ced1e1f8ced3d8/drivers/input/keyboard/mtk_ir/keymaps/keymap-konka-tv.c)
+- [Changhong keymap](https://github.com/TCLOpenSource/mt9653/blob/85db067ea371bb87753370ab99ced1e1f8ced3d8/drivers/input/keyboard/mtk_ir/keymaps/keymap-changhong-tv.c)
+- [Hisense keymap](https://github.com/TCLOpenSource/mt9653/blob/85db067ea371bb87753370ab99ced1e1f8ced3d8/drivers/input/keyboard/mtk_ir/keymaps/keymap-hisense-tv.c)
+- [MediaTek TV keymap](https://github.com/TCLOpenSource/mt9653/blob/85db067ea371bb87753370ab99ced1e1f8ced3d8/drivers/input/keyboard/mtk_ir/keymaps/keymap-mtk-tv.c)
+- [Konka protocol decoder](https://github.com/TCLOpenSource/mt9653/blob/85db067ea371bb87753370ab99ced1e1f8ced3d8/drivers/input/keyboard/mtk_ir/protocols/ir-konka-decoder.c)
+- [NEC protocol decoder](https://github.com/TCLOpenSource/mt9653/blob/85db067ea371bb87753370ab99ced1e1f8ced3d8/drivers/input/keyboard/mtk_ir/protocols/ir-nec-decoder.c)
+- [Protocol timing definitions and customer codes](https://github.com/TCLOpenSource/mt9653/blob/85db067ea371bb87753370ab99ced1e1f8ced3d8/drivers/input/keyboard/mtk_ir/ir_common.h)
+
+Third-party license notice is available in `THIRD_PARTY_NOTICES.md` and in the app under Settings → IR licenses.
+
+## Build and checks
+
+Open in Android Studio or build with Gradle. GitHub Actions checks all command maps and IR timing arrays, rejects Internet permission/ad dependencies, then assembles a debug APK. A phone must have a working Consumer IR emitter and support 38 kHz.

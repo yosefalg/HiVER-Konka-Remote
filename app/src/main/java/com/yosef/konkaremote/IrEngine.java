@@ -4,7 +4,6 @@ import android.content.Context;
 import android.hardware.ConsumerIrManager;
 
 final class IrEngine {
-    private static final int FREQUENCY = 38_000;
     private final ConsumerIrManager manager;
 
     IrEngine(Context context) {
@@ -21,64 +20,38 @@ final class IrEngine {
 
     boolean supports38Khz() {
         if (!isAvailable()) return false;
-        ConsumerIrManager.CarrierFrequencyRange[] ranges;
         try {
-            ranges = manager.getCarrierFrequencies();
+            ConsumerIrManager.CarrierFrequencyRange[] ranges = manager.getCarrierFrequencies();
+            if (ranges == null || ranges.length == 0) return true;
+            for (ConsumerIrManager.CarrierFrequencyRange range : ranges) {
+                if (range.getMinFrequency() <= IrSignalPatterns.CARRIER_HZ
+                        && range.getMaxFrequency() >= IrSignalPatterns.CARRIER_HZ) return true;
+            }
+            return false;
         } catch (RuntimeException ignored) {
-            // Some vendor IR HALs do not expose frequency ranges even though transmit works.
+            // Some vendor IR HALs do not report ranges although transmit is available.
             return true;
         }
-        if (ranges == null || ranges.length == 0) return true;
-        for (ConsumerIrManager.CarrierFrequencyRange range : ranges) {
-            if (range.getMinFrequency() <= FREQUENCY && range.getMaxFrequency() >= FREQUENCY) return true;
-        }
-        return false;
     }
 
-    void sendAiwa(int function) {
-        if (!isAvailable()) throw new IllegalStateException("لا يوجد مرسل أشعة تحت الحمراء في الهاتف");
-        // Public LIRC/IRDB Konka profiles: Aiwa protocol, device 25, subdevice 1.
-        long preData = 0x2620CEFL;
-        int command = ((function & 0xFF) << 8) | ((~function) & 0xFF);
-        int[] pattern = new int[2 + (26 + 16) * 2 + 1];
-        int p = 0;
-        pattern[p++] = 9010;
-        pattern[p++] = 4430;
-        for (int bit = 25; bit >= 0; bit--) {
-            pattern[p++] = 618;
-            pattern[p++] = ((preData >>> bit) & 1L) == 1L ? 1630 : 505;
-        }
-        for (int bit = 15; bit >= 0; bit--) {
-            pattern[p++] = 618;
-            pattern[p++] = ((command >>> bit) & 1) == 1 ? 1630 : 505;
-        }
-        pattern[p] = 618;
-        try {
-            manager.transmit(FREQUENCY, pattern);
-        } catch (SecurityException e) {
-            throw new IllegalStateException("تعذر الوصول إلى مرسل الأشعة تحت الحمراء في الهاتف");
-        }
+    void sendNec(int customerCode, int function) {
+        transmit(IrSignalPatterns.nec(customerCode, function));
     }
 
-    /** Public MStar/MediaTek Konka STAOS protocol used by the optional STAOS profile. */
+    /** Public MediaTek Konka STAOS protocol: customer byte 0x02 plus the mapped command. */
     void sendKonkaStaos(int function) {
+        transmit(IrSignalPatterns.konkaStaos(function));
+    }
+
+    private void transmit(int[] pattern) {
         if (!isAvailable()) throw new IllegalStateException("لا يوجد مرسل أشعة تحت الحمراء في الهاتف");
-        // IR_KONKA.h: 3ms header pulse/space, 16 data bits, 500us pulse,
-        // 1500us for 0, 2500us for 1, and 4ms trailer space.
-        int frame = (0x02 << 8) | (function & 0xFF);
-        int[] pattern = new int[2 + (16 * 2) + 1];
-        int p = 0;
-        pattern[p++] = 3000;
-        pattern[p++] = 3000;
-        for (int bit = 15; bit >= 0; bit--) {
-            pattern[p++] = 500;
-            pattern[p++] = ((frame >>> bit) & 1) == 1 ? 2500 : 1500;
-        }
-        pattern[p] = 4000;
+        if (!supports38Khz()) throw new IllegalStateException("هذا الهاتف لا يعلن دعم تردد 38kHz؛ أوقف الإرسال بدلاً من إرسال تردد غير مدعوم");
         try {
-            manager.transmit(FREQUENCY, pattern);
+            manager.transmit(IrSignalPatterns.CARRIER_HZ, pattern);
         } catch (SecurityException e) {
             throw new IllegalStateException("تعذر الوصول إلى مرسل الأشعة تحت الحمراء في الهاتف");
+        } catch (IllegalArgumentException e) {
+            throw new IllegalStateException("رفض نظام الهاتف نمط إرسال الأشعة تحت الحمراء", e);
         }
     }
 }

@@ -66,7 +66,9 @@ public final class MainActivity extends Activity {
         ir = new IrEngine(this);
         vibrator = (Vibrator) getSystemService(Context.VIBRATOR_SERVICE);
         prefs = getSharedPreferences("konka_remote", MODE_PRIVATE);
-        profile = prefs.getString("profile", RemoteProfiles.PROFILE_5040_A);
+        String storedProfile = prefs.getString("profile", RemoteProfiles.DEFAULT_PROFILE);
+        profile = RemoteProfiles.normalize(storedProfile);
+        if (!profile.equals(storedProfile)) prefs.edit().putString("profile", profile).apply();
         commands = RemoteProfiles.commands(profile);
         vibrationEnabled = prefs.getBoolean("vibration", true);
         hardwareKeysEnabled = prefs.getBoolean("hardware_keys", true);
@@ -138,14 +140,23 @@ public final class MainActivity extends Activity {
         rockers.addView(rocker("CH", "القناة", "CH_UP", "CH_DOWN"), weightedHeight(1, 176, 7));
         remote.addView(rockers, matchWrap(0, 18));
 
-        remote.addView(caption("اتجاهات الشاشة"), matchWrap(0, 8));
-        remote.addView(directionPad(), matchWrap(0, 18));
+        if (hasNavigation()) {
+            remote.addView(caption("اتجاهات الشاشة"), matchWrap(0, 8));
+            remote.addView(directionPad(), matchWrap(0, 18));
+        } else {
+            TextView noNavigation = label("الاتجاهات وOK غير موجودة في مصدر هذا الملف؛ أُخفيت بدلاً من عرض أزرار غير فعّالة.", 10, MUTED, false);
+            noNavigation.setGravity(Gravity.CENTER);
+            remote.addView(noNavigation, matchWrap(0, 18));
+        }
 
         LinearLayout utility = row();
         utility.setGravity(Gravity.CENTER);
-        addUtility(utility, "↩", "رجوع", "BACK");
-        addUtility(utility, "☰", "القائمة", "MENU");
-        addUtility(utility, "ⓘ", "معلومات", "INFO");
+        if (commands.containsKey("BACK")) addUtility(utility, "↩", "رجوع", "BACK");
+        if (commands.containsKey("MENU")) addUtility(utility, "☰", "القائمة", "MENU");
+        if (commands.containsKey("INFO")) addUtility(utility, "ⓘ", "معلومات", "INFO");
+        else if (commands.containsKey("DISPLAY")) addUtility(utility, "▣", "عرض", "DISPLAY");
+        else if (commands.containsKey("STATUS")) addUtility(utility, "ⓘ", "حالة", "STATUS");
+        if (commands.containsKey("HOME")) addUtility(utility, "⌂", "الرئيسية", "HOME");
         if (commands.containsKey("SLEEP")) addUtility(utility, "◷", "نوم", "SLEEP");
         remote.addView(utility, matchWrap(0, 22));
 
@@ -212,30 +223,30 @@ public final class MainActivity extends Activity {
         return frame;
     }
 
+    private boolean hasNavigation() {
+        return commands.containsKey("UP") && commands.containsKey("DOWN")
+                && commands.containsKey("LEFT") && commands.containsKey("RIGHT")
+                && commands.containsKey("ENTER");
+    }
+
     private View directionPad() {
         LinearLayout pad = column();
         pad.setGravity(Gravity.CENTER);
         LinearLayout top = row();
         top.setGravity(Gravity.CENTER);
-        top.addView(commandButton("▲\nفوق", "UP", 13), size(86, 52));
+        top.addView(commandButton("▲\\nفوق", "UP", 13), size(86, 52));
         pad.addView(top, matchWrap(0, 6));
         LinearLayout middle = row();
         middle.setGravity(Gravity.CENTER);
-        // Direction keys must read physically left-to-right even in the Arabic UI.
         middle.setLayoutDirection(View.LAYOUT_DIRECTION_LTR);
-        middle.addView(commandButton("◀\nيسار", "LEFT", 12), size(86, 52));
+        middle.addView(commandButton("◀\\nيسار", "LEFT", 12), size(86, 52));
         middle.addView(commandButton("OK", "ENTER", 15), size(72, 52));
-        middle.addView(commandButton("يمين\n▶", "RIGHT", 12), size(86, 52));
+        middle.addView(commandButton("يمين\\n▶", "RIGHT", 12), size(86, 52));
         pad.addView(middle, matchWrap(0, 6));
         LinearLayout bottom = row();
         bottom.setGravity(Gravity.CENTER);
-        bottom.addView(commandButton("▼\nتحت", "DOWN", 13), size(86, 52));
+        bottom.addView(commandButton("▼\\nتحت", "DOWN", 13), size(86, 52));
         pad.addView(bottom);
-        if (!commands.containsKey("UP")) {
-            TextView note = label("الاتجاهات غير متوفرة في ملف Aiwa الحالي — اختر Konka STAOS من الأجهزة للتجربة", 9, Color.rgb(137, 146, 158), false);
-            note.setGravity(Gravity.CENTER);
-            pad.addView(note, matchWrap(8, 0));
-        }
         return pad;
     }
 
@@ -397,10 +408,11 @@ public final class MainActivity extends Activity {
 
     private boolean sendForProfile(String selectedProfile, int function, boolean vibrate) {
         try {
-            if (RemoteProfiles.PROFILE_STAOS.equals(selectedProfile)) ir.sendKonkaStaos(function);
-            else ir.sendAiwa(function);
+            String normalized = RemoteProfiles.normalize(selectedProfile);
+            if (RemoteProfiles.usesKonkaProtocol(normalized)) ir.sendKonkaStaos(function);
+            else ir.sendNec(RemoteProfiles.necCustomerCode(normalized), function);
             if (vibrate) haptic();
-            status.setText("✓  تم إرسال الأمر");
+            status.setText("أُرسلت الإشارة؛ استجابة التلفاز غير مؤكدة");
             status.setTextColor(GREEN);
             return true;
         } catch (Exception e) {
@@ -419,8 +431,8 @@ public final class MainActivity extends Activity {
 
     private String irState() {
         if (!ir.isAvailable()) return "●  لا يوجد مرسل IR في هذا الهاتف";
-        if (!ir.supports38Khz()) return "●  مرسل IR موجود — تردد 38kHz غير معلن";
-        return "●  جاهز للإرسال بالأشعة تحت الحمراء";
+        if (!ir.supports38Khz()) return "●  مرسل IR موجود، لكن 38kHz غير مدعوم؛ الإرسال معطّل";
+        return "●  جاهز للإرسال عبر Consumer IR — الاستجابة غير مؤكدة";
     }
 
     private void showSettings() {
@@ -429,7 +441,7 @@ public final class MainActivity extends Activity {
         String speed = repeatDelay <= 130 ? "سريع" : repeatDelay >= 220 ? "هادئ" : "متوسط";
         new AlertDialog.Builder(this)
                 .setTitle("إعدادات الريموت")
-                .setItems(new String[]{vibration, hardwareKeys, "سرعة التكرار: " + speed, "مسح القنوات المفضلة", "فحص توافق جوكر"}, (d, which) -> {
+                .setItems(new String[]{vibration, hardwareKeys, "سرعة التكرار: " + speed, "مسح القنوات المفضلة", "فحص توافق جوكر", "تراخيص ملفات IR"}, (d, which) -> {
                     if (which == 0) {
                         vibrationEnabled = !vibrationEnabled;
                         prefs.edit().putBoolean("vibration", vibrationEnabled).apply();
@@ -440,10 +452,30 @@ public final class MainActivity extends Activity {
                         Toast.makeText(this, hardwareKeysEnabled ? "أزرار الصوت تتحكم بالتلفزيون" : "تم إيقاف تحكم أزرار الصوت", Toast.LENGTH_SHORT).show();
                     } else if (which == 2) showRepeatPicker();
                     else if (which == 3) confirmClearFavorites();
-                    else showJokerPicker();
+                    else if (which == 4) showJokerPicker();
+                    else showLicenseNotice();
                 })
                 .setNegativeButton("إغلاق", null)
                 .show();
+    }
+
+    private void showLicenseNotice() {
+        String notice;
+        try (java.io.InputStream input = getResources().openRawResource(R.raw.third_party_notices);
+             java.io.ByteArrayOutputStream output = new java.io.ByteArrayOutputStream()) {
+            byte[] buffer = new byte[1024];
+            int count;
+            while ((count = input.read(buffer)) != -1) output.write(buffer, 0, count);
+            notice = output.toString("UTF-8");
+        } catch (Exception e) {
+            notice = "IR maps adapted from TCLOpenSource/mt9653. See THIRD_PARTY_NOTICES.md in the source repository.";
+        }
+        ScrollView view = new ScrollView(this);
+        TextView text = label(notice, 12, TEXT, false);
+        text.setPadding(dp(16), dp(12), dp(16), dp(12));
+        view.addView(text);
+        new AlertDialog.Builder(this).setTitle("تراخيص ملفات IR").setView(view)
+                .setPositiveButton("إغلاق", null).show();
     }
 
     private void showRepeatPicker() {
@@ -467,13 +499,20 @@ public final class MainActivity extends Activity {
     }
 
     private void showProfilePicker() {
+        String[] profiles = RemoteProfiles.allProfiles();
+        String[] labels = new String[profiles.length];
+        int checked = 0;
+        for (int i = 0; i < profiles.length; i++) {
+            labels[i] = RemoteProfiles.title(profiles[i]);
+            if (profiles[i].equals(profile)) checked = i;
+        }
         new AlertDialog.Builder(this)
-                .setTitle("اختيار التلفزيون")
-                .setSingleChoiceItems(new String[]{"HiVER H43F01 — RID 5040-A", "Konka KK-Y199", "Konka STAOS — اتجاهات وOK"},
-                        RemoteProfiles.PROFILE_5040_B.equals(profile) ? 1 : RemoteProfiles.PROFILE_STAOS.equals(profile) ? 2 : 0, (dialog, which) -> {
-                            select(which == 0 ? RemoteProfiles.PROFILE_5040_A : which == 1 ? RemoteProfiles.PROFILE_5040_B : RemoteProfiles.PROFILE_STAOS);
-                            dialog.dismiss();
-                        })
+                .setTitle("اختيار ملف التحكم")
+                .setMessage("لم نعثر على ملف IR عام يثبت تطابق HiVER H43F01 / RID 5040. الملفات أدناه تخص خرائط منشورة لأجهزة أخرى، وهي مرشحات للاختبار وليست ضماناً للتوافق.")
+                .setSingleChoiceItems(labels, checked, (dialog, which) -> {
+                    select(profiles[which]);
+                    dialog.dismiss();
+                })
                 .setPositiveButton("ريموت جوكر", (d, w) -> showJokerPicker())
                 .setNeutralButton("فحص يدوي للملفات", (d, w) -> showManualScan(0))
                 .setNegativeButton("إلغاء", null).show();
@@ -485,8 +524,7 @@ public final class MainActivity extends Activity {
      * asks the user to confirm the TV response instead of pretending to detect it.
      */
     private void showManualScan(int index) {
-        final String[] candidates = {RemoteProfiles.PROFILE_5040_A,
-                RemoteProfiles.PROFILE_5040_B, RemoteProfiles.PROFILE_STAOS};
+        final String[] candidates = RemoteProfiles.allProfiles();
         if (index >= candidates.length) {
             new AlertDialog.Builder(this).setTitle("اكتمل الفحص")
                     .setMessage("لم يتم اعتماد أي ملف. لا يستطيع الهاتف قياس استجابة الأشعة؛ التأكيد يتم من تغيّر الشاشة فقط. يمكنك إعادة الفحص أو اختيار ملف من الأجهزة.")
@@ -498,14 +536,14 @@ public final class MainActivity extends Activity {
         LinearLayout content = new LinearLayout(this);
         content.setOrientation(LinearLayout.VERTICAL);
         content.setPadding(dp(20), dp(4), dp(20), dp(4));
-        TextView file = label("الملف الحالي: Konka / HiVER", 16, TEXT, true);
+        TextView file = label("المصدر: خرائط IR عامة منشورة — ليست شفرة RID 5040 مؤكدة", 15, TEXT, true);
         TextView name = label("المرشح: " + RemoteProfiles.title(candidate), 14, MUTED, false);
-        TextView warning = label("⚠ تأكيد الاستجابة بصري من التلفاز؛ الهاتف لا يملك مستقبلاً لقياس IR.", 13, Color.rgb(255, 174, 72), true);
+        TextView warning = label("⚠ الهاتف يرسل IR فقط ولا يقيس استجابة الشاشة. لا تعتمد الملف إلا بعد تغيّر فعلي في التلفاز.", 13, Color.rgb(255, 174, 72), true);
         warning.setGravity(Gravity.CENTER);
         ProgressBar progress = new ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal);
         progress.setMax(20); progress.setProgress(20);
         TextView timerText = label("جاهز — راقب الشاشة الآن", 14, CYAN, true);
-        Button confirm = raisedButton("✓  استجاب التلفاز — حفظ الملف", 16, GREEN);
+        Button confirm = raisedButton("✓  استجاب التلفاز — اعتماد الملف", 16, GREEN);
         confirm.setEnabled(true);
         Button next = raisedButton("التالي بعد 20 ثانية", 15, KEY_TOP);
         next.setEnabled(false);
@@ -531,25 +569,27 @@ public final class MainActivity extends Activity {
     }
 
     private void showJokerPicker() {
-        new AlertDialog.Builder(this).setTitle("جوكر — فحص التوافق")
-                .setMessage("وجّه الهاتف نحو التلفزيون. لا يُحفظ الملف إلا بعد تأكيد استجابة التلفزيون.")
-                .setItems(new String[]{"اختبار RID 5040-A", "اختبار Konka KK-Y199", "اختبار Konka STAOS مع الاتجاهات"}, (d, which) ->
-                        testCandidate(which == 0 ? RemoteProfiles.PROFILE_5040_A : which == 1 ? RemoteProfiles.PROFILE_5040_B : RemoteProfiles.PROFILE_STAOS))
+        String[] profiles = RemoteProfiles.allProfiles();
+        String[] labels = new String[profiles.length];
+        for (int i = 0; i < profiles.length; i++) labels[i] = "اختبار التشغيل — " + RemoteProfiles.title(profiles[i]);
+        new AlertDialog.Builder(this).setTitle("جوكر — ملفات IR عامة")
+                .setMessage("يرسل التطبيق أمر التشغيل الحقيقي من الملف المختار. لا يوجد كشف آلي؛ لا تعتمد الملف إلا بعد استجابة فعلية من التلفاز.")
+                .setItems(labels, (d, which) -> testCandidate(profiles[which]))
                 .setNegativeButton("إلغاء", null).show();
     }
 
     private void testCandidate(String candidate) {
         if (!sendForProfile(candidate, RemoteProfiles.power(candidate), true)) return;
-        new AlertDialog.Builder(this).setTitle("هل استجاب التلفزيون؟")
-                .setMessage(RemoteProfiles.title(candidate))
-                .setPositiveButton("نعم، احفظ الملف", (d, w) -> select(candidate))
+        new AlertDialog.Builder(this).setTitle("هل استجاب التلفاز؟")
+                .setMessage(RemoteProfiles.title(candidate) + "\n\nإذا تغيّرت الشاشة فعلياً، اعتمد الملف. هذا لا يثبت تطابق جميع الأزرار.")
+                .setPositiveButton("نعم، اعتمد الملف", (d, w) -> select(candidate))
                 .setNegativeButton("لا", null).show();
     }
 
     private void select(String selected) {
         channelSequence++;
         channelHandler.removeCallbacksAndMessages(null);
-        profile = selected;
+        profile = RemoteProfiles.normalize(selected);
         commands = RemoteProfiles.commands(profile);
         prefs.edit().putString("profile", profile).apply();
         typedChannel = "";

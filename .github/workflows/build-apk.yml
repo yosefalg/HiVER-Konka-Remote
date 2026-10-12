@@ -16,15 +16,20 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
-      - name: Verify IR profiles and offline permissions
+      - name: Verify IR profiles, timings and offline permissions
         run: |
-          if grep -q 'android.permission.INTERNET' app/src/main/AndroidManifest.xml; then
-            echo "Internet permission is forbidden"
+          if grep -Eq 'android.permission.(INTERNET|ACCESS_NETWORK_STATE)' app/src/main/AndroidManifest.xml; then
+            echo "Network permissions are forbidden"
+            exit 1
+          fi
+          if grep -Eiq 'admob|play-services-ads|facebook.*audience' app/build.gradle; then
+            echo "Ad SDK dependencies are forbidden"
             exit 1
           fi
           mkdir -p build/profile-test
-          javac -d build/profile-test \
+          javac -Xlint:all -Werror -d build/profile-test \
             app/src/main/java/com/yosef/konkaremote/RemoteProfiles.java \
+            app/src/main/java/com/yosef/konkaremote/IrSignalPatterns.java \
             tools/ProfileIntegrityCheck.java
           java -cp build/profile-test com.yosef.konkaremote.ProfileIntegrityCheck
       - name: Build debug APK
